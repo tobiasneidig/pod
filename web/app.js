@@ -166,6 +166,18 @@ function executeHook (appid, app, payload, cb) {
     }
     setTimeout(respond, 3000)
 
+    // add apps environment configuration to current environment
+    // run npm install / .podhook with the apps env configuration
+    var appEnv  = process.env;
+    var globalConfig = pod.getConfig()
+    appEnv.NODE_ENV = app.node_env || appEnv.NODE_ENV || 'development';
+    for (o in globalConfig.env) {
+        appEnv[o] = globalConfig.env[o]
+    }
+    for (o in app.env) {
+        appEnv[o] = app.env[o]
+    }
+
     fs.readFile(path.resolve(__dirname, '../hooks/post-receive'), 'utf-8', function (err, template) {
         if (err) return respond(err)
         var hookPath = conf.root + '/temphook.sh',
@@ -180,7 +192,7 @@ function executeHook (appid, app, payload, cb) {
             fs.chmod(hookPath, '0777', function (err) {
                 if (err) return respond(err)
                 console.log('excuting github webhook for ' + appid + '...')
-                var child = spawn('bash', [hookPath])
+                var child = spawn('bash', [hookPath], {env: appEnv})
                 child.stdout.pipe(process.stdout)
                 child.stderr.pipe(process.stderr)
                 child.on('exit', function (code) {
